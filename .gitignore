@@ -1,0 +1,21 @@
+# CRAG data is 739 MB and redistribution is restricted under CC BY-NC 4.0.
+# See wk/crag.DOWNLOAD_HINT for how to fetch it.
+data/
+*.jsonl
+*.jsonl.bz2
+*.jsonl.gz
+*.tar.bz2
+*.tar.bz2.part*
+
+results/
+*.png
+*.pdf
+
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ipynb_checkpoints/
+.DS_Store
+.venv/
+venv/
+*.egg-info/
