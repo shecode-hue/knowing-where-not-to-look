@@ -6,6 +6,7 @@ import gzip
 import json
 import re
 import unicodedata
+from dataclasses import replace
 from datetime import datetime
 from html import unescape
 from itertools import chain
@@ -143,6 +144,17 @@ NO_ANSWER = frozenset({
     "no answer", "none",
 })
 
+STOPWORDS = frozenset("""
+a an the of in on at to for from by with and or but is are was were be been
+being has have had do does did it its this that these those as than then
+which who whom whose what when where why how there their they them he she
+his her him we our you your i me my not no so if into over under about
+also all any each other more most some such only own same just can will
+would should could may might total number
+""".split())
+
+ANSWER_RECALL = 0.8
+
 KNOWN_FIELDS = frozenset(
     QUERY_KEYS + ANSWER_KEYS + ALT_ANSWER_KEYS + WEB_KEYS + KB_KEYS
     + POPULARITY_KEYS + HOPS_KEYS
@@ -240,6 +252,24 @@ def _contains_tokens(haystack: Sequence[str], needle: Sequence[str]) -> bool:
         if token == lead and list(haystack[i:i + span]) == list(needle):
             return True
     return False
+
+
+def answer_tokens(gold: Any, question: Any) -> set[str]:
+    asked = set(_tokens(question))
+    return {t for t in _tokens(gold) if t not in STOPWORDS and t not in asked}
+
+
+def answer_present(gold: Any, question: Any, haystack: Sequence[str]) -> bool:
+    needle = normalise(gold)
+    if needle in NO_ANSWER:
+        return False
+    if _contains_tokens(haystack, needle.split()):
+        return True
+    wanted = answer_tokens(gold, question)
+    if not wanted:
+        return False
+    seen = set(haystack)
+    return sum(t in seen for t in wanted) / len(wanted) >= ANSWER_RECALL
 
 
 def _first_present(item: dict[str, Any], keys: Iterable[str]) -> Any:
@@ -435,16 +465,12 @@ class _CragSource:
         haystack = _tokens(evidence_text(ev))
         if not haystack:
             return False
-        for gold in [q.answer, *_alt_answers(self.item(q))]:
-            needle = normalise(gold)
-            if needle in NO_ANSWER:
-                continue
-            if _contains_tokens(haystack, needle.split()):
-                return True
-        return False
+        golds = [q.answer, *_alt_answers(self.item(q))]
+        return any(answer_present(g, q.text, haystack) for g in golds)
 
     def run(self, q: Question, ev: Evidence, n: int = 10) -> SourceRun:
-        raise NotImplementedError(RUN_STUB_MESSAGE.format(name=self.name))
+        from wk.baseline_agent import run_extractive
+        return replace(run_extractive(q, ev, n=n), source=self.name)
 
 
 class CragWebSource(_CragSource):
