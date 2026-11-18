@@ -20,3 +20,4 @@ __pycache__/
 venv/
 *.egg-info/
 mock_api/cragkg/
+papers/*.pdf
