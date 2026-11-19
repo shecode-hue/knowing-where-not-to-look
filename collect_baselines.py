@@ -84,8 +84,21 @@ def main():
     print(f"{len(sample)} questions: " +
           ", ".join(f"{k} {v}" for k, v in sorted(counts.items())), flush=True)
 
-    rows, t0 = [], time.time()
+    partial = RESULTS / "baselines_partial.pkl"
+    done = {}
+    if partial.exists():
+        try:
+            done = {r["qid"]: r for r in
+                    pickle.load(open(partial, "rb"))}
+            print(f"resuming: {len(done)} rows already collected",
+                  flush=True)
+        except Exception:
+            done = {}
+    rows = [done[q.qid] for q in sample if q.qid in done]
+    t0 = time.time()
     for i, q in enumerate(sample):
+        if q.qid in done:
+            continue
         golds = crag.gold_answers(q)
         w_pass = ranked(w_cache[q.qid])
         k_pass = ranked(k_cache[q.qid])
@@ -116,6 +129,10 @@ def main():
                 **block}
 
         rows.append(rec)
+        if len(rows) % 25 == 0:
+            tmp = partial.with_suffix(".tmp")
+            pickle.dump(rows, open(tmp, "wb"))
+            tmp.replace(partial)
         if (i + 1) % 20 == 0:
             rate = (time.time() - t0) / (i + 1)
             print(f"  {i + 1}/{len(sample)}  {time.time() - t0:.0f}s  "
@@ -123,6 +140,7 @@ def main():
 
     llm.stop()
     pickle.dump(rows, open(RESULTS / "baselines_raw.pkl", "wb"))
+    partial.unlink(missing_ok=True)
     print(f"\nwritten {RESULTS / 'baselines_raw.pkl'}  ({len(rows)} rows)")
 
 

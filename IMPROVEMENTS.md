@@ -250,3 +250,53 @@ reaches only about 0.2, below the 0.5 break-even threshold that CRAG scoring
 implies. The rule is working; the sources are too weak to be worth polling
 jointly. Fusion should be revisited once a stronger reader lifts the per-source
 numbers.
+
+---
+
+## Version 7. The independence experiment, completed
+
+The second half: the agent held byte-identical, the corpus grown tenfold
+(CRAG task 3, fifty pages per question), on 738 paired questions.
+
+|  | 5 pages | 50 pages | delta |
+|---|---|---|---|
+| ghost mass `g` | 0.322 | **0.154** | −0.168, 95% CI [−0.195, −0.142] |
+| reliability `r` (members) | 0.236 | 0.228 | −0.008 |
+
+With the first half (three agent generations moved `r` from 0.066 to 0.286
+while `g` stayed within 0.32 to 0.34), this is a double dissociation: each
+manipulation moves exactly one quantity. `r` belongs to the agent, `g` to the
+corpus.
+
+Validity check: membership flips were gained 124, lost 0. The small corpus is
+a subset of the large one, so a sound labeller can only gain members; a
+single loss would have indicated labelling noise.
+
+### The realtime surprise
+
+| dynamism | n | g, 5 pages | g, 50 pages |
+|---|---|---|---|
+| static | 403 | 0.303 | 0.164 |
+| slow | 156 | 0.269 | 0.115 |
+| fast | 98 | 0.357 | 0.204 |
+| realtime | 81 | 0.481 | **0.123** |
+
+At shallow depth, realtime questions look ghost-heavy and the natural reading
+is staleness. At depth they are the best-covered class. The web source's
+apparent staleness was substantially a retrieval-depth effect: the fresh
+figures exist further down the ranking. Ghost mass as a function of recency is
+depth-dependent, which refines the specification's working hypothesis.
+
+### H2 on W, resolved
+
+With fifty pages the retrieval features vary, and membership becomes
+predictable at AUROC 0.651 against a shuffled 0.484, above the 0.6 bar. The
+earlier null (0.51) was an artifact of every question carrying exactly five
+unscored pages. H2 now holds on both sources: K 0.83, W 0.65.
+
+### The window decomposition of rare-passage mass
+
+The agent's 400-span window reaches 62% of member questions; within the
+window, r is 0.312, higher than at five pages. The flat overall r is entirely
+window truncation: rare-passage mass now separates into answers beyond the
+agent's view (38% of members) and answers mis-ranked within it.
