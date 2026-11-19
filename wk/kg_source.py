@@ -19,7 +19,7 @@ from wk import crag, probes
 from wk.baseline_agent import run_extractive
 from wk.contract import Evidence, Question, SourceRun
 
-DOMAINS = ("movie", "open")
+DOMAINS = ("movie", "open", "music", "finance")
 MAX_NGRAM = 8
 MAX_ENTITIES = 3
 MAX_LIST = 40
@@ -43,6 +43,18 @@ PERSON_RELATIONS = {
     "acted_movies": ("acted", "act", "star", "starred", "appear", "appeared",
                      "movies", "films", "role"),
     "directed_movies": ("direct", "directed", "director"),
+}
+ARTIST_RELATIONS = {
+    "birth_date": ("born", "birth", "birthday", "age", "old"),
+    "country": ("country", "from", "origin", "nationality", "where"),
+    "members": ("member", "members", "lineup", "band", "who"),
+    "end_date": ("disband", "disbanded", "split", "ended", "broke"),
+}
+SONG_RELATIONS = {
+    "author": ("who", "author", "artist", "sang", "sings", "performed",
+               "wrote", "by"),
+    "date": ("when", "released", "release", "year", "date"),
+    "country": ("country", "where", "origin"),
 }
 AWARD_CUES = ("oscar", "oscars", "academy", "award", "awards", "nominated",
               "nomination", "won", "win")
@@ -71,6 +83,7 @@ def spell_money(value: Any) -> str:
 
 class KnowledgeBase:
     def __init__(self) -> None:
+        import pickle
         from cragapi.movie import MovieKG
         from cragapi.open import OpenKG
         self.movie = MovieKG()
@@ -78,20 +91,49 @@ class KnowledgeBase:
         self.movies = self.movie._movie_db
         self.persons = self.movie._person_db
         self.years = self.movie._year_db
+        music = MOCK / "cragkg" / "music"
+        self.artists, self.songs, self.charts = {}, {}, {}
+        if (music / "artist_dict_simplified.pickle").exists():
+            raw_a = pickle.load(open(music / "artist_dict_simplified.pickle",
+                                     "rb"))
+            raw_s = pickle.load(open(music / "song_dict_simplified.pickle",
+                                     "rb"))
+            self.artists = {self.movie._normalize(k): v
+                            for k, v in raw_a.items()}
+            self.songs = {self.movie._normalize(k): v
+                          for k, v in raw_s.items()}
+            self.charts = self._charts(
+                pickle.load(open(music / "rank_dict_hot100.pickle", "rb")))
+        self.finance = None
+        if (MOCK / "cragkg" / "finance" / "finance_marketcap.sqlite").exists():
+            try:
+                from cragapi.finance import FinanceKG
+                self.finance = FinanceKG()
+            except Exception:
+                self.finance = None
         self.coverage = {"movie": self._coverage(self.movies, MOVIE_RELATIONS),
                          "person": self._coverage(self.persons,
-                                                  PERSON_RELATIONS)}
+                                                  PERSON_RELATIONS),
+                         "artist": self._coverage(self.artists,
+                                                  ARTIST_RELATIONS),
+                         "song": self._coverage(self.songs, SONG_RELATIONS)}
 
     @staticmethod
     def _coverage(db: dict, relations: dict) -> dict[str, float]:
         sample = list(db.values())[:5000]
+        if not sample:
+            return {rel: 0.0 for rel in relations}
         return {rel: sum(bool(rec.get(rel)) for rec in sample) / len(sample)
                 for rel in relations}
 
     def link(self, q: Question) -> list[tuple[str, str]]:
         tokens = self.movie._normalize(q.text).split()
-        tables = [("open", self.open.key_map)] if q.domain == "open" else [
-            ("movie", self.movies), ("person", self.persons)]
+        if q.domain == "open":
+            tables = [("open", self.open.key_map)]
+        elif q.domain == "music":
+            tables = [("artist", self.artists), ("song", self.songs)]
+        else:
+            tables = [("movie", self.movies), ("person", self.persons)]
         found: list[tuple[str, str]] = []
         used = [False] * len(tokens)
         for size in range(min(MAX_NGRAM, len(tokens)), 0, -1):
@@ -144,6 +186,128 @@ class KnowledgeBase:
                                f"{spell_date(m.get('release_date', ''))}.")
         return out
 
+    def finance_facts(self, query: str) -> tuple[list[str], str]:
+        if self.finance is None:
+            return [], ""
+        names = self.finance.get_company_name(query)
+        if not names:
+            return [], ""
+        name = names[0]
+        ticker = self.finance.get_ticker_by_name(name)
+        if not ticker:
+            return [], ""
+        out = [f"{name} trades under the ticker symbol {ticker}."]
+        for label, fn in (("market capitalisation",
+                           self.finance.get_market_capitalization),
+                          ("price to earnings ratio",
+                           self.finance.get_pe_ratio),
+                          ("earnings per share", self.finance.get_eps)):
+            try:
+                value = fn(ticker)
+            except Exception:
+                value = None
+            if value is not None:
+                shown = (spell_money(value) if label.startswith("market")
+                         else f"{float(value):.2f}")
+                out.append(f"The {label} of {name} ({ticker}) is {shown}.")
+        try:
+            info = self.finance.get_info(ticker) or {}
+        except Exception:
+            info = {}
+        for key, label in (("sector", "sector"), ("industry", "industry"),
+                           ("city", "city"), ("country", "country"),
+                           ("fullTimeEmployees", "number of employees"),
+                           ("website", "website")):
+            if info.get(key):
+                out.append(f"The {label} of {name} is {info[key]}.")
+        for officer in (info.get("companyOfficers") or [])[:12]:
+            if officer.get("name"):
+                out.append(f"{officer.get('name')} is the "
+                           f"{officer.get('title', 'an officer')} of {name}.")
+        summary = str(info.get("longBusinessSummary") or "")
+        for part in summary.split(". ")[:8]:
+            if len(part) > 20:
+                out.append(part.strip() + ".")
+        try:
+            divs = self.finance.get_dividends_history(ticker) or {}
+        except Exception:
+            divs = {}
+        for day in sorted(divs)[-MAX_LIST:]:
+            out.append(f"{name} ({ticker}) paid a dividend of "
+                       f"{divs[day]} on {spell_date(str(day)[:10])}.")
+        try:
+            hist = self.finance.get_price_history(ticker) or {}
+        except Exception:
+            hist = {}
+        for day in sorted(hist)[-MAX_LIST:]:
+            row = hist[day] or {}
+            close = row.get("close") if isinstance(row, dict) else None
+            if close is not None:
+                out.append(f"On {spell_date(str(day)[:10])} the closing "
+                           f"share price of {name} ({ticker}) was "
+                           f"{float(close):.2f} dollars.")
+        return out, ticker
+
+    def _charts(self, rank_dict: dict) -> dict[str, dict[int, set]]:
+        out: dict[str, dict[int, set]] = {}
+        for rank, rows in rank_dict.items():
+            try:
+                pos = int(rank)
+            except (TypeError, ValueError):
+                continue
+            for row in rows:
+                artist = self.movie._normalize(str(row.get("Artist", "")))
+                if not artist:
+                    continue
+                out.setdefault(artist, {}).setdefault(pos, set()).add(
+                    (str(row.get("Song", "")), str(row.get("Date", ""))))
+        return out
+
+    def chart_facts(self, name: str) -> list[str]:
+        entry = self.charts.get(name)
+        if not entry:
+            return []
+        out = []
+        for pos in sorted(entry):
+            songs = sorted(entry[pos])
+            titles = sorted({s for s, _ in songs})
+            if pos == 1:
+                out.append(f"{name} has {len(titles)} number one hits on the "
+                           f"Billboard Hot 100.")
+                out.append(f"The number one hits by {name} are "
+                           f"{', '.join(titles[:MAX_LIST])}.")
+            for song, date in songs[:MAX_LIST]:
+                out.append(f"{song} by {name} reached number {pos} on the "
+                           f"Billboard Hot 100 on {spell_date(date)}.")
+        return out
+
+    def artist_facts(self, name: str, rec: dict) -> list[str]:
+        out = []
+        if rec.get("birth_date"):
+            out.append(f"{name} was born on {spell_date(rec['birth_date'])}.")
+        if rec.get("country"):
+            out.append(f"{name} is from {rec['country']}.")
+        if rec.get("end_date"):
+            out.append(f"{name} ended in {spell_date(rec['end_date'])}.")
+        members = rec.get("members") or []
+        if members:
+            out.append(f"The members of {name} are "
+                       f"{', '.join(members[:MAX_LIST])}.")
+            for m in members[:MAX_LIST]:
+                out.append(f"{m} is a member of {name}.")
+        return out
+
+    def song_facts(self, name: str, rec: dict) -> list[str]:
+        out = []
+        if rec.get("author"):
+            out.append(f"The song {name} is by {rec['author']}.")
+        if rec.get("date"):
+            out.append(f"The song {name} was released in "
+                       f"{spell_date(rec['date'])}.")
+        if rec.get("country"):
+            out.append(f"The song {name} was released in {rec['country']}.")
+        return out
+
     def year_facts(self, year: str) -> list[str]:
         out = []
         for a in (self.years.get(year, {}).get("oscar_awards") or []):
@@ -153,10 +317,13 @@ class KnowledgeBase:
         return out
 
 
+RELATION_TABLES = {"movie": MOVIE_RELATIONS, "person": PERSON_RELATIONS,
+                   "artist": ARTIST_RELATIONS, "song": SONG_RELATIONS}
+
+
 def _relation(q: Question, kind: str) -> str | None:
     words = set(crag._tokens(q.text))
-    table = MOVIE_RELATIONS if kind == "movie" else PERSON_RELATIONS
-    for rel, cues in table.items():
+    for rel, cues in RELATION_TABLES.get(kind, {}).items():
         if words & set(cues):
             return rel
     return None
@@ -170,6 +337,17 @@ class KBSource:
 
     def retrieve(self, q: Question) -> Evidence:
         kb = self.kb
+        if q.domain == "finance":
+            facts, ticker = kb.finance_facts(q.text)
+            items = [{"entity": ticker, "text": f} for f in facts]
+            return Evidence(source="K", items=items, meta={
+                "entity_resolved": float(bool(ticker)),
+                "relation_present": float(len(facts) > 1),
+                "node_degree": float(len(facts)),
+                "entity_type": "company",
+                "type_coverage": 1.0 if ticker else 0.0,
+                "n_entities": float(bool(ticker)),
+                "link_tokens": float(len(ticker.split())) if ticker else 0.0})
         links = kb.link(q)
         items: list[dict[str, Any]] = []
         present, coverage, etype = 0.0, 0.0, ""
@@ -187,9 +365,17 @@ class KBSource:
                 present = max(present, float(hit >= RELATION_RECALL))
                 coverage = max(coverage, 1.0)
                 continue
-            rec = (kb.movies if kind == "movie" else kb.persons)[name]
-            facts = (kb.movie_facts(rec) if kind == "movie"
-                     else kb.person_facts(rec))
+            table = {"movie": kb.movies, "person": kb.persons,
+                     "artist": kb.artists, "song": kb.songs}[kind]
+            rec = table[name]
+            if kind == "movie":
+                facts = kb.movie_facts(rec)
+            elif kind == "person":
+                facts = kb.person_facts(rec)
+            elif kind == "artist":
+                facts = kb.artist_facts(name, rec) + kb.chart_facts(name)
+            else:
+                facts = kb.song_facts(name, rec)
             items += [{"entity": name, "text": f} for f in facts]
             rel = _relation(q, kind)
             if rel:

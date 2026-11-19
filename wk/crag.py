@@ -411,6 +411,12 @@ def _to_question(item: dict[str, Any], fallback_qid: str) -> Question:
     )
 
 
+def gold_answers(q: Question,
+                 item: dict[str, Any] | None = None) -> list[str]:
+    item = item if item is not None else RAW_ITEMS.get(q.qid, {})
+    return [q.answer, *_alt_answers(item)]
+
+
 def load_crag(path: str | Path | None = None,
               limit: int | None = None) -> list[Question]:
     files = _candidate_files(path)

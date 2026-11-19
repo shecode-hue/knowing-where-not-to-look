@@ -152,3 +152,101 @@ that; it needs a model that reads several passages and writes an answer, which
 means an LLM.
 
 So the realistic ceiling for this pipeline is around r = 0.6, not 1.0.
+
+---
+
+## Version 6. An LLM reader, and all four sources
+
+A 1.5B instruct model (Qwen2.5, 4-bit, run locally through llama.cpp on
+Metal) reads the retrieved passages and writes the answer, instead of a span
+being selected. The same model, asked with no retrieval at all, becomes the
+P source; a fact store written from confident answers becomes M.
+
+Measured on 763 held-out questions, with weights fitted on a disjoint 763:
+
+| Source | r | precision | g | answered | bluff | CRAG |
+|---|---|---|---|---|---|---|
+| W alone | 0.138 | 0.235 | 0.343 | 0.384 | 0.302 | −0.203 |
+| K alone | 0.286 | **0.496** | 0.734 | 0.153 | 0.059 | −0.001 |
+| P alone | **0.476** | 0.110 | 0.890 | 0.478 | 0.445 | −0.374 |
+| M alone | 0.000 | 0.000 | 0.995 | 0.118 | 0.113 | −0.118 |
+
+With a CRAG-optimal abstention threshold fitted per source:
+
+| Source | r | precision | answered | bluff | CRAG |
+|---|---|---|---|---|---|
+| W | 0.000 | — | 0.000 | 0.000 | 0.000 |
+| K | 0.128 | **0.619** | 0.055 | 0.007 | **+0.013** |
+| P | 0.024 | 1.000 | 0.003 | 0.000 | +0.003 |
+| M | 0.000 | — | 0.000 | 0.000 | 0.000 |
+
+### Reading these numbers
+
+**The reader is not worse than span selection, though `r` says it is.**
+W's precision when it answers is 0.235, against 0.222 for the extractive
+agent. But the reader abstains on 62% of questions, and an abstention counts
+against `r` by its definition, `Pr(ŷ = y* | y* ∈ C_s)`. Reporting precision
+alongside `r` separates caution from incompetence; `r` alone conflates them.
+
+**K is the strongest source.** Its reader reaches 0.619 precision and a
+positive CRAG score. Knowledge-graph facts are short and self-contained,
+which suits both the reranker and a small reader.
+
+**W's reader is never profitable at any threshold.** The optimiser sets it to
+permanent silence. For W, span selection with a fitted threshold (+0.008)
+beats this reader. A 1.5B model is weak; the result is a floor for reader
+performance, not a ceiling.
+
+**P is reliable when it knows and cannot tell when it does not.** It is the
+most reliable source on the questions it covers, `r = 0.476`, higher than W
+or K. But it covers only 11% of questions (`g = 0.890`) and answers 47.8% of
+them, bluffing at 0.445. That is the hallucination failure, measured: the
+knowledge is good, the self-knowledge is not. A threshold on its own logprob
+fixes it, at the cost of answering almost nothing.
+
+**M contributes nothing, as predicted.** Ghost mass 0.995. CRAG questions are
+unique, so a memory written during the run has almost nothing to recall. This
+is reported rather than concealed; measuring M needs a benchmark with
+repeated or related queries.
+
+## The flaw found in the fusion rule
+
+The rule in the landscape review,
+
+```
+p(y|e) ∝ p₀(y) · ∏_s [(1−g_s)(r_s p_s + (1−r_s)u(y)) + g_s u(y)]
+```
+
+spreads ghost mass `g_s·u(y)` over every candidate, including the one that
+source proposed. Solving for when a candidate beats abstention gives
+
+```
+answer only if   r_s > g_s / (1 − g_s)
+```
+
+W would need `r > 0.58` against an actual 0.138, and K would need
+`r > 2.76`, which no source can satisfy. The condition was confirmed
+empirically: on a 20-question probe K answered correctly every time it
+answered (`r = 1.0`) and the rule still silenced it. **Every fused version
+answered 0% of questions.**
+
+It was replaced with a noisy-OR over the event "this source holds the answer
+and retrieved it correctly", probability `(1 − g_s)·r_s`:
+
+```
+p(c) = [1 − ∏(1 − (1−g_s)r_s)] · ∏(1 − (1−g_s)r_s)
+          s backing c              s backing something else
+p(∅) = ∏(1 − (1−g_s)r_s)   over every source that spoke
+```
+
+This passes each case the product form fails: a trusted source
+(`r=.95, g=.05`) answers at 0.90, three mediocre sources that agree answer at
+0.73, a hopeless source (`r=.2, g=.9`) abstains at 0.98, and on disagreement
+the more reliable source is preferred while the decision still abstains.
+
+**Fusion still abstains on real data, and that is correct.** With per-question
+`r` and `g` from fitted probes, the combined `(1−g)r` across W, K and P
+reaches only about 0.2, below the 0.5 break-even threshold that CRAG scoring
+implies. The rule is working; the sources are too weak to be worth polling
+jointly. Fusion should be revisited once a stronger reader lifts the per-source
+numbers.
