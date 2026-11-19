@@ -21,3 +21,13 @@ venv/
 *.egg-info/
 mock_api/cragkg/
 papers/*.pdf
+
+# Model weights. A 1.1 GB .gguf was committed on 19 November 2026 and had to be
+# rewritten out of history, which orphaned a session's work. Never again.
+models/
+*.gguf
+
+# Mock knowledge graphs: 4.3 GB, refetchable with fetch_rest.py
+mock_api/cragkg/
+*.sqlite
+*.pickle

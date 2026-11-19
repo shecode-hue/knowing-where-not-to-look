@@ -46,8 +46,9 @@ def ranked(row, k=6):
 
 def sample_block(question, passages, n, temperature):
     texts, logprobs, means = [], [], []
+    width = len(passages) if passages else 6
     for s in range(n):
-        out = (llm.read(question, passages, seed=s + 1,
+        out = (llm.read(question, passages, n_evidence=width, seed=s + 1,
                         temperature=temperature) if passages is not None
                else llm.recall(question, seed=s + 1,
                                temperature=temperature))
@@ -88,7 +89,7 @@ def main():
         golds = crag.gold_answers(q)
         w_pass = ranked(w_cache[q.qid])
         k_pass = ranked(k_cache[q.qid])
-        both = (w_pass + k_pass)[:10]
+        both = w_pass[:5] + k_pass[:5]
 
         rec = {"qid": q.qid, "q": q, "golds": golds,
                "split": split[q.qid], "arms": {}}
@@ -97,8 +98,9 @@ def main():
                               ("concat_rag", both),
                               ("w_only", w_pass),
                               ("k_only", k_pass)):
-            greedy = (llm.read(q.text, passages) if passages is not None
-                      else llm.recall(q.text))
+            greedy = (llm.read(q.text, passages,
+                               n_evidence=len(passages))
+                      if passages is not None else llm.recall(q.text))
             block = sample_block(q.text, passages, args.samples,
                                  args.temperature)
             verb = llm.verbalised(q.text, passages)
