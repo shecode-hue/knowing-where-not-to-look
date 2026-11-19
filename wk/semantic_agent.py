@@ -24,11 +24,13 @@ _MODELS: dict[str, Any] = {}
 
 def models() -> tuple[Any, Any]:
     if "embed" not in _MODELS:
+        import os
         from sentence_transformers import CrossEncoder, SentenceTransformer
-        embed = SentenceTransformer(EMBED_MODEL)
+        device = os.environ.get("ST_DEVICE") or None
+        embed = SentenceTransformer(EMBED_MODEL, device=device)
         embed.max_seq_length = 128
         _MODELS["embed"] = embed
-        _MODELS["rerank"] = CrossEncoder(RERANK_MODEL, max_length=192)
+        _MODELS["rerank"] = CrossEncoder(RERANK_MODEL, max_length=192, device=device)
     return _MODELS["embed"], _MODELS["rerank"]
 
 
