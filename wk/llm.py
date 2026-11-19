@@ -86,10 +86,12 @@ def stop():
     _proc = None
 
 
-def complete(prompt, n=48, temperature=0.0, logprobs=False, seed=0):
+def complete(prompt, n=48, temperature=0.0, logprobs=False, seed=0,
+             stop=None):
     body = {"prompt": prompt, "n_predict": n, "temperature": temperature,
             "seed": seed, "cache_prompt": True,
-            "stop": ["\n\n", "Question:", "Evidence:"]}
+            "stop": ["\n\n", "Question:", "Evidence:", NO_ANSWER]
+            if stop is None else stop}
     if logprobs:
         body["n_probs"] = 5
     data = json.dumps(body).encode()
@@ -111,8 +113,14 @@ def clean(text):
     return re.sub(r'^["\']|["\'\.]$', "", text).strip()
 
 
-def retracted(said):
-    return NO_ANSWER.lower() in (said or "").lower()
+def strip_marker(said):
+    text = (said or "").strip()
+    low = text.lower()
+    idx = low.find(NO_ANSWER.lower())
+    if idx < 0:
+        return text, False
+    before = re.sub(r'[\s\.,;:\-]+$', "", text[:idx]).strip()
+    return before, not before
 
 
 def mean_logprob(result):
@@ -130,10 +138,103 @@ def mean_logprob(result):
     return sum(picked) / len(picked) if picked else float("nan")
 
 
+VERBALISED = """Answer the question, then state your confidence.
+
+Reply on two lines, exactly:
+ANSWER: <your answer, or {no}>
+CONFIDENCE: <a number from 0 to 100>
+
+{context}Question: {question}
+"""
+
+PTRUE = """Question: {question}
+Proposed answer: {answer}
+
+Is the proposed answer correct? Reply with one word, True or False.
+Answer:"""
+
+
+def token_logprobs(result):
+    steps = result.get("completion_probabilities") or []
+    out = []
+    for step in steps:
+        top = step.get("top_logprobs") or step.get("probs") or []
+        if not top:
+            continue
+        first = top[0]
+        if "logprob" in first:
+            out.append(float(first["logprob"]))
+        elif float(first.get("prob", 0)) > 0:
+            out.append(math.log(float(first["prob"])))
+    return out
+
+
+def token_entropies(result):
+    steps = result.get("completion_probabilities") or []
+    out = []
+    for step in steps:
+        top = step.get("top_logprobs") or step.get("probs") or []
+        ps = []
+        for cand in top:
+            if "logprob" in cand:
+                ps.append(math.exp(float(cand["logprob"])))
+            elif "prob" in cand:
+                ps.append(float(cand["prob"]))
+        total = sum(ps)
+        if total <= 0:
+            continue
+        ps = [p / total for p in ps]
+        out.append(-sum(p * math.log(p) for p in ps if p > 0))
+    return out
+
+
+def verbalised(question, passages=None, seed=0):
+    context = ""
+    if passages:
+        joined = "\n".join(f"[{i + 1}] {p}" for i, p in enumerate(passages))
+        context = f"Evidence:\n{joined}\n\n"
+    prompt = VERBALISED.format(question=question, context=context,
+                               no=NO_ANSWER)
+    out = complete(prompt, n=64, temperature=0.0, seed=seed,
+                   stop=["Question:", "Evidence:", "\nANSWER:"])
+    text = out.get("content") or ""
+    answer, conf = None, None
+    for line in text.splitlines():
+        low = line.strip().lower()
+        if low.startswith("answer:"):
+            answer = clean(line.split(":", 1)[1])
+        elif low.startswith("confidence:"):
+            digits = re.findall(r"\d+(?:\.\d+)?", line)
+            if digits:
+                conf = min(max(float(digits[0]) / 100.0, 0.0), 1.0)
+    if conf is None:
+        digits = re.findall(r"(?i)confidence\D{0,12}(\d+(?:\.\d+)?)", text)
+        if digits:
+            conf = min(max(float(digits[0]) / 100.0, 0.0), 1.0)
+    if answer:
+        answer, blank = strip_marker(answer)
+        if blank:
+            answer = None
+    return {"answer": answer, "confidence": conf, "raw": text.strip()}
+
+
+def p_true(question, answer, seed=0):
+    if not answer:
+        return 0.0
+    out = complete(PTRUE.format(question=question, answer=answer),
+                   n=4, temperature=0.0, logprobs=True, seed=seed)
+    said = (out.get("content") or "").strip().lower()
+    lp = token_logprobs(out)
+    p = math.exp(lp[0]) if lp else 0.5
+    return p if said.startswith("true") else 1.0 - p
+
+
 def _shape(said, out):
-    gave_up = retracted(said)
-    return {"answer": None if gave_up else said, "raw": said,
-            "mean_logprob": mean_logprob(out), "abstained": gave_up}
+    answer, gave_up = strip_marker(said)
+    return {"answer": None if gave_up else (answer or None), "raw": said,
+            "mean_logprob": mean_logprob(out), "abstained": gave_up,
+            "logprobs": token_logprobs(out),
+            "entropies": token_entropies(out)}
 
 
 def read(question, passages, n_evidence=6, seed=0, temperature=0.0):

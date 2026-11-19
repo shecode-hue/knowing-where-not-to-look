@@ -19,7 +19,7 @@ from wk import crag, probes
 from wk.baseline_agent import run_extractive
 from wk.contract import Evidence, Question, SourceRun
 
-DOMAINS = ("movie", "open", "music", "finance")
+DOMAINS = ("movie", "open", "music", "finance", "sports")
 MAX_NGRAM = 8
 MAX_ENTITIES = 3
 MAX_LIST = 40
@@ -49,6 +49,15 @@ ARTIST_RELATIONS = {
     "country": ("country", "from", "origin", "nationality", "where"),
     "members": ("member", "members", "lineup", "band", "who"),
     "end_date": ("disband", "disbanded", "split", "ended", "broke"),
+}
+PLAYER_RELATIONS = {
+    "birthdate": ("born", "birth", "birthday", "age", "old"),
+    "school": ("school", "college", "university", "attend", "played"),
+    "country": ("country", "from", "nationality", "where"),
+    "height": ("tall", "height"),
+    "position": ("position", "play", "plays"),
+    "draft_year": ("draft", "drafted", "pick", "round", "selected"),
+    "team_name": ("team", "plays", "played", "for"),
 }
 SONG_RELATIONS = {
     "author": ("who", "author", "artist", "sang", "sings", "performed",
@@ -104,14 +113,44 @@ class KnowledgeBase:
                           for k, v in raw_s.items()}
             self.charts = self._charts(
                 pickle.load(open(music / "rank_dict_hot100.pickle", "rb")))
+        self.players = {}
+        nba = MOCK / "cragkg" / "sports" / "nba.sqlite"
+        if nba.exists():
+            import sqlite3
+            con = sqlite3.connect(f"file:{nba}?mode=ro", uri=True)
+            con.row_factory = sqlite3.Row
+            cols = ("display_first_last, birthdate, school, country, height, "
+                    "weight, position, draft_year, draft_round, draft_number, "
+                    "from_year, to_year, team_name, jersey, greatest_75_flag")
+            for row in con.execute(f"select {cols} from common_player_info"):
+                name = row["display_first_last"]
+                if name:
+                    self.players[self.movie._normalize(name)] = dict(row)
+            con.close()
         self.finance = None
         if (MOCK / "cragkg" / "finance" / "finance_marketcap.sqlite").exists():
             try:
                 from cragapi.finance import FinanceKG
                 self.finance = FinanceKG()
             except Exception:
-                self.finance = None
-        self.coverage = {"movie": self._coverage(self.movies, MOVIE_RELATIONS),
+                self.players = {}
+        nba = MOCK / "cragkg" / "sports" / "nba.sqlite"
+        if nba.exists():
+            import sqlite3
+            con = sqlite3.connect(f"file:{nba}?mode=ro", uri=True)
+            con.row_factory = sqlite3.Row
+            cols = ("display_first_last, birthdate, school, country, height, "
+                    "weight, position, draft_year, draft_round, draft_number, "
+                    "from_year, to_year, team_name, jersey, greatest_75_flag")
+            for row in con.execute(f"select {cols} from common_player_info"):
+                name = row["display_first_last"]
+                if name:
+                    self.players[self.movie._normalize(name)] = dict(row)
+            con.close()
+        self.finance = None
+        self.coverage = {"player": self._coverage(self.players,
+                                                   PLAYER_RELATIONS),
+                         "movie": self._coverage(self.movies, MOVIE_RELATIONS),
                          "person": self._coverage(self.persons,
                                                   PERSON_RELATIONS),
                          "artist": self._coverage(self.artists,
@@ -130,6 +169,8 @@ class KnowledgeBase:
         tokens = self.movie._normalize(q.text).split()
         if q.domain == "open":
             tables = [("open", self.open.key_map)]
+        elif q.domain == "sports":
+            tables = [("player", self.players)]
         elif q.domain == "music":
             tables = [("artist", self.artists), ("song", self.songs)]
         else:
@@ -281,6 +322,34 @@ class KnowledgeBase:
                            f"Billboard Hot 100 on {spell_date(date)}.")
         return out
 
+    def player_facts(self, name: str, rec: dict) -> list[str]:
+        who = rec.get("display_first_last") or name
+        out = []
+        if rec.get("birthdate"):
+            out.append(f"{who} was born on "
+                       f"{spell_date(str(rec['birthdate'])[:10])}.")
+        for key, phrase in (("school", "attended"), ("country", "is from"),
+                            ("position", "plays the position of"),
+                            ("team_name", "played for the")):
+            if rec.get(key):
+                out.append(f"{who} {phrase} {rec[key]}.")
+        if rec.get("height"):
+            out.append(f"{who} is {rec['height']} feet and inches tall.")
+        if rec.get("weight"):
+            out.append(f"{who} weighs {rec['weight']} pounds.")
+        if rec.get("jersey"):
+            out.append(f"{who} wore jersey number {rec['jersey']}.")
+        if rec.get("draft_year"):
+            out.append(f"{who} was drafted in {rec['draft_year']}, "
+                       f"round {rec.get('draft_round')}, "
+                       f"pick {rec.get('draft_number')}.")
+        if rec.get("from_year") and rec.get("to_year"):
+            start, end = str(rec["from_year"])[:4], str(rec["to_year"])[:4]
+            out.append(f"{who} played in the NBA from {start} to {end}.")
+        if str(rec.get("greatest_75_flag") or "").strip().lower() == "y":
+            out.append(f"{who} is one of the NBA 75th anniversary team.")
+        return out
+
     def artist_facts(self, name: str, rec: dict) -> list[str]:
         out = []
         if rec.get("birth_date"):
@@ -318,7 +387,8 @@ class KnowledgeBase:
 
 
 RELATION_TABLES = {"movie": MOVIE_RELATIONS, "person": PERSON_RELATIONS,
-                   "artist": ARTIST_RELATIONS, "song": SONG_RELATIONS}
+                   "artist": ARTIST_RELATIONS, "song": SONG_RELATIONS,
+                   "player": PLAYER_RELATIONS}
 
 
 def _relation(q: Question, kind: str) -> str | None:
@@ -366,12 +436,15 @@ class KBSource:
                 coverage = max(coverage, 1.0)
                 continue
             table = {"movie": kb.movies, "person": kb.persons,
-                     "artist": kb.artists, "song": kb.songs}[kind]
+                     "artist": kb.artists, "song": kb.songs,
+                     "player": kb.players}[kind]
             rec = table[name]
             if kind == "movie":
                 facts = kb.movie_facts(rec)
             elif kind == "person":
                 facts = kb.person_facts(rec)
+            elif kind == "player":
+                facts = kb.player_facts(name, rec)
             elif kind == "artist":
                 facts = kb.artist_facts(name, rec) + kb.chart_facts(name)
             else:
