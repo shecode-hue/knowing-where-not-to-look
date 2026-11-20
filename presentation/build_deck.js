@@ -158,25 +158,8 @@ function lead(slide, pairs, y, size, gap) {
     ["Cause one: the answer is in the corpus and retrieval misses it.", false],
     ["Cause two: the answer is written nowhere the agent can reach.", false],
   ], 1.62, 17, 14);
-  support(s, "The two causes demand opposite repairs, and a single confidence number cannot say which one is happening.", 3.75, { h: 0.8 });
-  s.addNotes("The concrete problem first. On CRAG, the benchmark used throughout, straightforward retrieval-augmented generation reaches about forty-four percent accuracy with about thirty percent hallucination: the system answers confidently where it should not. When it is wrong there are two different causes. Either the answer is present and retrieval took the wrong route, which better retrieval fixes, or the answer is written nowhere the system can reach, where searching harder only returns the nearest wrong answer more confidently. The repairs are opposite: fix the pipeline, or stop searching this source. Any confidence that arrives as a single number cannot tell the operator which repair is indicated. That is the problem.");
-}
-
-// 3 · The gap
-{
-  const s = pres.addSlide({ masterName: "CONTENT" });
-  kicker(s, "G A P");
-  title(s, "What existing methods miss");
-  eq(s, [
-    "ĉ_agree(y)  =  (1/N) Σᵢ 1{ y(τᵢ) = y }        →        Q(y | q),  not  Pr(y = y*)",
-  ], 0.62, 1.55, 8.8, 17);
-  lead(s, [
-    ["Sampling methods estimate the agent's own distribution, not correctness.", false],
-    ["Corpus coverage and retrieval skill are merged into one score; the diagnosis is unrecoverable.", false],
-    ["Nothing predicts, before execution, whether an external corpus can contain the answer.", false],
-  ], 2.6, 15, 12);
-  support(s, "57 papers reviewed; none separates the two quantities, and none tests their independence.", 4.42, { h: 0.7 });
-  s.addNotes("Why existing methods do not solve it. Self-consistency and semantic entropy run the agent several times and read agreement as confidence; as N grows that estimate converges to the agent's own sampling distribution, which equals correctness only when the proposal matches the target. On a question whose answer is written nowhere, every run re-reads the same absence and agrees perfectly. Beyond sampling, the evidence-scoring line of work merges corpus coverage and retrieval skill into one number, after which the diagnosis cannot be recovered. And pre-execution prediction exists only for what the model itself knows, never for whether an external corpus holds the answer. We reviewed all fifty-seven papers in the project's landscape survey: none separates the two quantities per source, and none tests whether they are independent.");
+  support(s, "Opposite repairs. A single confidence number cannot say which, and nothing predicts, before running, whether any source can contain the answer.", 3.75, { h: 0.8 });
+  s.addNotes("The concrete problem first. On CRAG, the benchmark used throughout, straightforward retrieval-augmented generation reaches about forty-four percent accuracy with about thirty percent hallucination: the system answers confidently where it should not. When it is wrong there are two causes. Either the answer is present and retrieval took the wrong route, which better retrieval fixes, or it is written nowhere the system can reach, where searching harder only returns the nearest wrong answer more confidently. The repairs are opposite, and a single confidence number cannot say which is indicated. The gap in existing methods is threefold: sampling approaches estimate the agent's own distribution rather than correctness, evidence scores merge coverage with retrieval skill so the diagnosis is unrecoverable, and nothing predicts before execution whether an external corpus can contain the answer. We reviewed all fifty-seven papers in the project's landscape survey; none separates the two quantities and none tests their independence.");
 }
 
 // 4 · Outline
@@ -217,42 +200,6 @@ function lead(slide, pairs, y, size, gap) {
   s.addNotes("The idea in two definitions. Each source, the model's parameters, the web, the knowledge base, memory, has a corpus. Ghost mass is the probability the true answer is not in that corpus at all. Reliability is conditional: the chance the agent finds the answer given that it is there, skill on winnable questions rather than accuracy. Phi of q is computed from the question and the retrieval only, before any answer exists. The three classes follow, and each indicates a different action: answer, repair retrieval, or change source and abstain. Keeping the numbers apart is what makes the action decidable; merged, it is not.");
 }
 
-// 6 · Idea: decomposition
-{
-  const s = pres.addSlide({ masterName: "CONTENT" });
-  kicker(s, "I D E A");
-  title(s, "Where sampling cannot reach");
-  eq(s, ["U~s~(q)   =   U_alea(q)   +   U_param(q | s)   +   g~s~(q)"],
-     0.62, 1.7, 8.8, 21);
-  ruleTable(s, [
-    ["term", "meaning", "reduced by"],
-    ["U_alea", "the question is ambiguous", "asking the user"],
-    ["U_param", "held, but the agent is unsure", "sampling, retrieval"],
-    ["g~s~", "cannot be held", "changing source only"],
-  ], { x: 0.62, y: 2.8, w: 8.8, colW: [1.7, 3.9, 3.2], fontSize: 14, accentCol: 2 });
-  s.addNotes("Why this is an uncertainty story. The usual split is aleatoric against epistemic. Ghost mass is a third term: epistemic about the corpus rather than about the model. More samples are drawn from a corpus that does not contain the answer, so no amount of sampling moves it; only consulting a different source does. The additive form is a reporting convention rather than a theorem, following Kirchhof and colleagues, with the ghost term estimated operationally from labelled coverage. It is the term standard estimators cannot see, and the reason a separate per-source estimate earns its keep.");
-}
-
-// 7 · Test design
-{
-  const s = pres.addSlide({ masterName: "CONTENT" });
-  kicker(s, "T E S T   D E S I G N");
-  title(s, "If the split is real, it must dissociate");
-  s.addText([
-    { text: "Objection:  ", options: { bold: true, color: REDL } },
-    { text: "these are one quantity, split arbitrarily. Every ghost is retrieval failing harder.",
-      options: { color: BRIGHT } },
-  ], { x: 0.62, y: 1.58, w: 8.8, h: 0.8, fontSize: 15.5, align: "left",
-       margin: 0, isTextBox: true });
-  ruleTable(s, [
-    ["manipulation", "prediction"],
-    ["improve the agent, corpus fixed", "r rises, g unchanged"],
-    ["grow the corpus, agent fixed", "g falls, r unchanged"],
-  ], { x: 0.62, y: 2.5, w: 8.8, colW: [4.6, 4.2], fontSize: 15, accentCol: 1, rowH: 0.44 });
-  support(s, "CRAG · 4,409 questions · 738 paired at five and fifty pages · agent byte-identical across the corpus arm", 4.2, { h: 0.8 });
-  s.addNotes("The design, framed against the strongest objection: that ghost mass and reliability are one messy quantity split arbitrarily. If reliability belongs to the agent, improving the agent with the corpus fixed should move r and leave g alone. If ghost mass belongs to the corpus, growing the corpus tenfold with the agent held byte-identical should move g and leave r alone. Both arms ran on CRAG: three retrieval generations for the first; for the second, the same seven hundred and thirty-eight questions at five and at fifty pages. Alongside, nine standard estimators from LM-Polygraph were measured with isotonic calibration on a held-out split, so every claim about existing methods is against their real numbers, not a caricature. None of the fifty-seven reviewed papers runs this design.");
-}
-
 // 8 · Result 1
 {
   const s = pres.addSlide({ masterName: "CONTENT" });
@@ -260,7 +207,7 @@ function lead(slide, pairs, y, size, gap) {
   title(s, "Each knob moves exactly one quantity");
   plate(s, "plate_dissociation.png", 2.415, 7.9, 5.0, 1.42);
   support(s, "Δg = −0.168, 95% CI [−0.195, −0.142]   ·   membership flips: 124 gained, 0 lost", 5.0);
-  s.addNotes("Result one, the dissociation. Left panel reliability, right panel ghost mass; grey is before, colour is after. Improving the agent four times over moved reliability from 0.066 to 0.286 and left ghost mass flat. Growing the corpus tenfold halved ghost mass, 0.322 to 0.154, interval nowhere near zero, and moved reliability by eight thousandths. Each manipulation moves exactly one quantity: r is a property of the agent, g of the corpus. The validity check: the five-page corpus is a subset of the fifty-page one, so a sound labeller can only gain members. We gained one hundred and twenty-four, lost zero.");
+  s.addNotes("Result one, the central experiment. The design answers the strongest objection, that ghost mass and reliability are one quantity split arbitrarily: if r belongs to the agent, improving the agent with the corpus fixed moves r and leaves g; if g belongs to the corpus, growing the corpus tenfold with the agent byte-identical moves g and leaves r. Both arms ran on CRAG, 4,409 questions, 738 of them paired at five and fifty pages. Left panel reliability, right panel ghost mass; grey is before, colour is after. Improving the agent four times over moved reliability from 0.066 to 0.286 and left ghost mass flat. Growing the corpus tenfold halved ghost mass, 0.322 to 0.154, interval nowhere near zero, and moved reliability by eight thousandths. Each manipulation moves exactly one quantity: r is a property of the agent, g of the corpus. The validity check: the five-page corpus is a subset of the fifty-page one, so a sound labeller can only gain members. We gained one hundred and twenty-four, lost zero.");
 }
 
 // 9 · Result 2
@@ -280,19 +227,21 @@ function lead(slide, pairs, y, size, gap) {
   title(s, "Absence is predictable before execution");
   ruleTable(s, [
     ["source", "AUROC", "permutation"],
+    ["P, parametric (question text only)", "0.690", "0.485"],
     ["K, knowledge graph", "0.83", "0.49"],
     ["W, five pages", "0.51", "0.50"],
     ["W, fifty pages", "0.651", "0.484"],
-  ], { x: 0.62, y: 1.62, w: 8.8, colW: [4.4, 2.2, 2.2], fontSize: 15,
-       accentCol: 1, alignRest: "left", rowH: 0.44 });
+  ], { x: 0.62, y: 1.55, w: 8.8, colW: [4.4, 2.2, 2.2], fontSize: 15,
+       accentCol: 1, alignRest: "left", rowH: 0.42 });
+  support(s, "M, memory: g = 0.995 on unique queries, nothing to predict.", 3.95);
   s.addText([
     { text: "The five-page null was an artifact: constant features.  ",
       options: { color: BODY } },
     { text: "Gate: false premise detected at 0.868 from text alone.",
       options: { color: BRIGHT } },
-  ], { x: 0.62, y: 4.1, w: 8.8, h: 0.8, fontSize: 13.5, align: "left",
+  ], { x: 0.62, y: 4.5, w: 8.8, h: 0.8, fontSize: 13.5, align: "left",
        margin: 0, isTextBox: true });
-  s.addNotes("Result three: the core hypothesis, that cheap pre-execution features predict whether the corpus holds the answer. On the knowledge base it holds at 0.83 against a permutation baseline at chance. On the web at five pages it appeared refuted, 0.51; that null was a benchmark artifact, every question carrying exactly five unscored pages, so the informative features were constants. At fifty pages the features vary and the same probe reaches 0.651, above the project's bar of 0.6. Before any source matters there is also a gate: a plain text classifier detects false premises at 0.868 from the question alone, the omega component of phi.");
+  s.addNotes("Result three: the core hypothesis, that cheap pre-execution features predict whether a source holds the answer, now across three of the four sources. For the parametric source the probe uses the question text alone and reaches 0.690, above the bar of 0.6: the model's own coverage is guessable before generating a token. The knowledge base holds at 0.83. The web at five pages appeared refuted at 0.51; that null was a benchmark artifact, every question carrying exactly five unscored pages, so the informative features were constants. At fifty pages the same probe reaches 0.651. Memory is the honest exception: ghost mass 0.995 on unique queries, so there is nothing to predict. Before any source matters there is also a gate: false premises detected at 0.868 from the question alone, the omega component of phi.");
 }
 
 // 11 · Result 4
