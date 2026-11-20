@@ -61,9 +61,9 @@ No paper varies the agent while holding the corpus fixed, or the converse.
 | Gap | Approach | Status |
 |---|---|---|
 | 1 | Carry `g` and `r` as separate per-source quantities through to the decision rule | Implemented for both sources |
-| 2 | Probe features derived solely from the question and the retrieval, never from an answer; evaluated by AUROC | Implemented. Supported on K (0.83; 0.68 on the entity-resolved subset), refuted on W (0.51) |
+| 2 | Probe features derived solely from the question and the retrieval, never from an answer; evaluated by AUROC | Supported on both sources: K 0.83, W 0.65 once the corpus varies. The earlier W null (0.51) was an artifact of every question carrying exactly five unscored pages |
 | 3 | Separate W and K implementations with distinct probe sets | Implemented |
-| 4 | Vary the agent with the corpus fixed, and the corpus with the agent fixed | Partially complete: the agent was varied, `r` rose from 0.07 to 0.27, `g` unchanged |
+| 4 | Vary the agent with the corpus fixed, and the corpus with the agent fixed | Complete, both directions. Agent varied: `r` 0.066 to 0.286, `g` flat. Corpus grown tenfold on 738 paired questions: `g` 0.322 to 0.154 (CI [-0.195, -0.142]), `r` moved 0.008 |
 
 ---
 
@@ -322,6 +322,9 @@ One variable is altered at a time, on identical questions:
 | Improved agent, fixed corpus | `r` rises, `g` unchanged | `r` is a property of the agent |
 | Enlarged corpus, fixed agent | `g` falls, `r` approximately unchanged | `g` is a property of the corpus |
 
-The first condition has been met: `r` rose from 0.070 to 0.267 while `g`
-remained at approximately 0.31. The second requires CRAG's 50-page release,
-which is already published.
+Both conditions have now been met. Agent varied, corpus fixed: `r` rose
+from 0.066 to 0.286 while `g` stayed within 0.32 to 0.34. Corpus grown
+tenfold, agent byte-identical, on 738 paired questions: `g` halved from
+0.322 to 0.154 (95% CI on the change [-0.195, -0.142]) while `r` moved by
+0.008. Membership flips were 124 gained, 0 lost, the monotonicity a sound
+labeller must show. Each manipulation moves exactly one quantity.
