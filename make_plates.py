@@ -26,7 +26,8 @@ plt.rcParams.update({"font.size": 12, "axes.edgecolor": INK,
 
 def dissociation():
     fig, axes = plt.subplots(1, 2, figsize=(7.6, 3.1), sharey=True)
-    labels = ["agent improved\ncorpus fixed", "corpus grown\nagent fixed"]
+    labels = ["agent improved\ncorpus fixed\nn = 2,706",
+              "corpus grown\nagent fixed\nn = 738"]
     r_vals = [(0.066, 0.286), (0.236, 0.228)]
     g_vals = [(0.318, 0.343), (0.322, 0.154)]
     for ax, vals, name, colour in ((axes[0], r_vals, "reliability  r", BLUE),
@@ -57,7 +58,8 @@ def depth():
     ax.bar(x - 0.17, g5, 0.34, color=GREY, label="5 pages")
     ax.bar(x + 0.17, g50, 0.34, color=BLUE, label="50 pages")
     ax.set_xticks(x)
-    ax.set_xticklabels(order, fontsize=12)
+    ax.set_xticklabels([f"{d}\nn = {data[d]['n']}" for d in order],
+                       fontsize=11)
     ax.set_ylabel("ghost mass  g", fontsize=12)
     ax.legend(frameon=False, fontsize=11)
     ax.spines[["top", "right"]].set_visible(False)
@@ -80,7 +82,8 @@ def inversion():
     ax.axvline(0.5, color=GREY, lw=1, ls="--")
     ax.set_yticks(y)
     ax.set_yticklabels(names, fontsize=11)
-    ax.set_xlabel("AUROC, answer is correct", fontsize=12)
+    ax.set_xlabel("AUROC, answer is correct   (293 questions \u00D7 10 samples, K source)",
+                  fontsize=11)
     ax.set_xlim(0, 1)
     ax.invert_yaxis()
     ax.legend(frameon=False, fontsize=11, loc="lower left")

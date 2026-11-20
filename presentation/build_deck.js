@@ -178,7 +178,8 @@ function lead(slide, pairs, y, size, gap) {
     ["Cause one: the answer is in the corpus and retrieval misses it.", false],
     ["Cause two: the answer is written nowhere the agent can reach.", false],
   ], 1.62, 17, 14);
-  support(s, "Opposite repairs. A single confidence number cannot say which, and nothing predicts, before running, whether any source can contain the answer.", 3.75, { h: 0.8 });
+  support(s, "Opposite repairs. A single confidence number cannot say which, and nothing predicts, before running, whether any source can contain the answer.", 3.6, { h: 0.8 });
+  support(s, "CRAG, 4,409 questions: straightforward RAG reaches about 44% accuracy with about 30% hallucination.", 4.45, { h: 0.55, color: BRIGHT });
   s.addNotes("The concrete problem first. On CRAG, the benchmark used throughout, straightforward retrieval-augmented generation reaches about forty-four percent accuracy with about thirty percent hallucination: the system answers confidently where it should not. When it is wrong there are two causes. Either the answer is present and retrieval took the wrong route, which better retrieval fixes, or it is written nowhere the system can reach, where searching harder only returns the nearest wrong answer more confidently. The repairs are opposite, and a single confidence number cannot say which is indicated. The gap in existing methods is threefold: sampling approaches estimate the agent's own distribution rather than correctness, evidence scores merge coverage with retrieval skill so the diagnosis is unrecoverable, and nothing predicts before execution whether an external corpus can contain the answer. We reviewed all fifty-seven papers in the project's landscape survey; none separates the two quantities and none tests their independence.");
 }
 
@@ -235,7 +236,7 @@ function lead(slide, pairs, y, size, gap) {
   const s = pres.addSlide({ masterName: "CONTENT" });
   kicker(s, "R E S U L T   2");
   title(s, "Ghost mass is depth-dependent");
-  plate(s, "plate_depth.png", 2.041, 6.7, 5.0, 1.4);
+  plate(s, "plate_depth.png", 2.038, 6.7, 5.0, 1.4);
   support(s, "realtime: g falls 0.481 → 0.123, the largest drop of any class", 5.02);
   s.addNotes("Result two, a surprise. Split by how fast each answer changes in the world. At five pages, realtime questions carry the heaviest ghost mass and the natural reading is staleness. At fifty pages the picture inverts: realtime drops to 0.123 and becomes the best-covered class, three times the drop of static questions. The fresh figures existed all along, lower in the ranking than a five-page window reaches. Apparent staleness was substantially retrieval depth, and which questions are ghosts depends on how deep the system reads. This refines the specification's working hypothesis: ghost mass grows with recency at shallow depth, and the relation inverts at depth.");
 }
@@ -246,12 +247,12 @@ function lead(slide, pairs, y, size, gap) {
   kicker(s, "R E S U L T   3");
   title(s, "Absence is predictable before execution");
   ruleTable(s, [
-    ["source", "AUROC", "permutation"],
-    ["P, parametric (question text only)", "0.690", "0.485"],
-    ["K, knowledge graph", "0.83", "0.49"],
-    ["W, five pages", "0.51", "0.50"],
-    ["W, fifty pages", "0.651", "0.484"],
-  ], { x: 0.62, y: 1.55, w: 8.8, colW: [4.4, 2.2, 2.2], fontSize: 15,
+    ["source", "AUROC", "permutation", "n held out"],
+    ["P, parametric (question text only)", "0.690", "0.485", "293"],
+    ["K, knowledge graph", "0.83", "0.49", "576"],
+    ["W, five pages", "0.51", "0.50", "1,353"],
+    ["W, fifty pages", "0.651", "0.484", "369"],
+  ], { x: 0.62, y: 1.55, w: 8.8, colW: [3.9, 1.7, 1.9, 1.3], fontSize: 15,
        accentCol: 1, alignRest: "left", rowH: 0.42 });
   support(s, "M, memory: g = 0.995 on unique queries, nothing to predict.", 3.95);
   s.addText([
@@ -269,7 +270,7 @@ function lead(slide, pairs, y, size, gap) {
   const s = pres.addSlide({ masterName: "CONTENT" });
   kicker(s, "R E S U L T   4");
   title(s, "Abstention breaks the standard estimators");
-  plate(s, "plate_inversion.png", 2.395, 7.5, 5.0, 1.42);
+  plate(s, "plate_inversion.png", 2.461, 7.6, 5.0, 1.45);
   support(s, "conditioning on abstention: MeanTokenEntropy 0.047 → 0.966, nothing harmed", 5.0);
   s.addNotes("Result four, about the baselines themselves. Red dots are raw AUROC, blue after conditioning on abstention. Headline numbers spread from 0.034 to 0.97 on the same arm, and the whole spread is about abstention: a declining model emits its refusal with near-zero token entropy, so entropy-family estimators read confident refusal as confident assertion and invert below chance. Sequence log-likelihood happens to encode refusal as uncertain, so it looks strong. Make the encoding explicit, abstention as maximal uncertainty, and the inverted estimator repairs from 0.047 to 0.966 with nothing harmed. Among answered questions every estimator sits between 0.59 and 0.67; the spread was never about discrimination. The repair is one line and portable to any abstaining system.");
 }
@@ -282,8 +283,8 @@ function lead(slide, pairs, y, size, gap) {
   plate(s, "plate_reliability.png", 5.087, 8.76, 5.0, 1.45);
   ruleTable(s, [
     ["expected calibration error", "value"],
-    ["overall", "0.030   [0.016, 0.073]"],
-    ["per KAP cell", "0.045 to 0.130"],
+    ["overall, 293 held out", "0.030   [0.016, 0.073]"],
+    ["per KAP cell, n = 26 to 131", "0.045 to 0.130"],
   ], { x: 0.62, y: 3.6, w: 8.8, colW: [4.4, 4.4], fontSize: 14, rowH: 0.4, accentCol: 1 });
   s.addNotes("Result five, calibration. Measured overall, expected calibration error is 0.030 and looks excellent. Measured inside each cell, every cell is worse, 0.045 to 0.130: overconfident where answers move, underconfident where they sit still, cancelling to a marginal number that is accurate and uninformative. The same structure shows on the recency axis as a confidence-accuracy gap of 0.248 on realtime against 0.097 on static, non-overlapping intervals. Marginal conformal coverage, for completeness, held in every cell, but conservatively, with coverage near one; the structure lives in calibration error, not coverage.");
 }
@@ -303,6 +304,7 @@ function lead(slide, pairs, y, size, gap) {
       options: { color: BRIGHT } },
   ], { x: 0.62, y: 3.12, w: 8.8, h: 0.8, fontSize: 16.5, align: "left",
        margin: 0, isTextBox: true });
+  support(s, "conflict measures tied on the 70 real W-against-K disagreements: \u03BA 0.657, evidence ratio 0.650", 4.1, { h: 0.75 });
   s.addNotes("Result six, found by carrying the two numbers to the decision rule. The Bayesian product form the project started from spreads each source's ghost mass as noise over every candidate, including the one that source proposed. Solved for when it answers at all, the condition is r greater than g over one minus g; the knowledge base would need reliability above 2.7, impossible for a probability, and empirically it silenced a source answering correctly every time. Dempster-Shafer differs in one respect: unreliability is parked on the whole frame as uncommitted belief. Measured on real evidence it is the better calibrated rule. The two conflict measures, kappa and the Bayesian evidence ratio from the cosmology tension literature, tied on the seventy real disagreements held so far.");
 }
 
