@@ -28,6 +28,16 @@ def clean(text):
     return _CODE.sub(r"\1", text)
 
 
+def breakable(text, limit=13):
+    out = []
+    for token in clean(text).split(" "):
+        while len(token) > limit:
+            out.append(token[:limit])
+            token = token[limit:]
+        out.append(token)
+    return " ".join(out)
+
+
 class Doc(FPDF):
     def __init__(self, title):
         super().__init__(format="A4")
@@ -122,8 +132,10 @@ class Doc(FPDF):
         self.set_font("DJ", "", 8.2)
         want = []
         for col in range(n):
-            longest = max(self.get_string_width(clean(r[col])) if col < len(r)
-                          else 0 for r in rows)
+            longest = max(
+                (max((self.get_string_width(w) for w in
+                      breakable(r[col]).split(" ")), default=0)
+                 if col < len(r) else 0) for r in rows)
             want.append(max(longest + 6, 16))
         total = sum(want)
         return [w * WIDTH / total for w in want]
@@ -132,8 +144,8 @@ class Doc(FPDF):
         self.set_font("DJ", "B" if bold else "", 8.2)
         heights = []
         for text, w in zip(cells, widths):
-            lines = self.multi_cell(w - 3, 4.1, clean(text), dry_run=True,
-                                    output="LINES")
+            lines = self.multi_cell(w - 3, 4.1, breakable(text),
+                                    dry_run=True, output="LINES")
             heights.append(4.1 * len(lines))
         height = max(heights) + 2.6
         self.need(height + 2)
@@ -144,7 +156,7 @@ class Doc(FPDF):
         x = LEFT
         for text, w in zip(cells, widths):
             self.set_xy(x + 1.5, y + 1.3)
-            self.multi_cell(w - 3, 4.1, clean(text))
+            self.multi_cell(w - 3, 4.1, breakable(text))
             x += w
         self.set_draw_color(226, 224, 220)
         self.set_line_width(0.25)
