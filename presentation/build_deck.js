@@ -221,11 +221,28 @@ function lead(slide, pairs, y, size, gap) {
   s.addNotes("The idea in two definitions. Each source, the model's parameters, the web, the knowledge base, memory, has a corpus. Ghost mass is the probability the true answer is not in that corpus at all. Reliability is conditional: the chance the agent finds the answer given that it is there, skill on winnable questions rather than accuracy. Phi of q is computed from the question and the retrieval only, before any answer exists. The three classes follow, and each indicates a different action: answer, repair retrieval, or change source and abstain. Keeping the numbers apart is what makes the action decidable; merged, it is not.");
 }
 
+// 7b · Results at a glance
+{
+  const s = pres.addSlide({ masterName: "CONTENT" });
+  kicker(s, "R E S U L T S");
+  title(s, "The six results");
+  ruleTable(s, [
+    ["1", "corpus grown tenfold halves ghost mass, 0.322 \u2192 0.154; reliability moves 0.008"],
+    ["2", "realtime ghost mass was retrieval depth: 0.481 \u2192 0.123 at fifty pages"],
+    ["3", "coverage predicted before execution: P 0.69, K 0.83, W 0.65 AUROC"],
+    ["4", "abstention inverts entropy estimators; conditioning repairs 0.047 \u2192 0.966"],
+    ["5", "marginal ECE 0.030 hides per-cell 0.045 to 0.130"],
+    ["6", "the product fusion rule cannot answer; Dempster-Shafer calibrates at 0.102 vs 0.163"],
+  ], { x: 0.62, y: 1.5, w: 8.8, colW: [0.55, 8.25], fontSize: 14,
+       accentCol: 0, rowH: 0.52, noHeader: true });
+  s.addNotes("The six results in one view before the detail. One: the double dissociation, each manipulation moving exactly one quantity. Two: the depth effect that reinterprets staleness. Three: pre-execution predictability of coverage on three of the four sources. Four: the abstention inversion in standard estimators and its one-line repair. Five: calibration structure the marginal number hides. Six: the fusion correction, with Dempster-Shafer better calibrated on real evidence. Each gets one slide with its sample sizes and controls.");
+}
+
 // 8 · Result 1
 {
   const s = pres.addSlide({ masterName: "CONTENT" });
   kicker(s, "R E S U L T   1");
-  title(s, "Each knob moves exactly one quantity");
+  title(s, "Corpus × 10: g −0.168, r −0.008");
   plate(s, "plate_dissociation.png", 2.384, 7.3, 5.0, 1.3);
   support(s, "retriever upgraded = keyword overlap replaced by BM25, embeddings, cross-encoder; nothing else changed", 4.68, { h: 0.42 });
   support(s, "Δg = −0.168, 95% CI [−0.195, −0.142]   ·   flips when the corpus grew: 124 gained, 0 lost", 5.12, { h: 0.4 });
@@ -236,7 +253,7 @@ function lead(slide, pairs, y, size, gap) {
 {
   const s = pres.addSlide({ masterName: "CONTENT" });
   kicker(s, "R E S U L T   2");
-  title(s, "Ghost mass is depth-dependent");
+  title(s, "Realtime g: 0.481 → 0.123 at depth");
   plate(s, "plate_depth.png", 2.038, 6.3, 5.0, 1.26);
   support(s, "the 738 paired questions, binned by how fast the answer changes; pairs compare 5 vs 50 pages", 4.66, { h: 0.42 });
   support(s, "realtime: g falls 0.481 → 0.123, the largest drop of any class", 5.12, { h: 0.4 });
@@ -247,7 +264,7 @@ function lead(slide, pairs, y, size, gap) {
 {
   const s = pres.addSlide({ masterName: "CONTENT" });
   kicker(s, "R E S U L T   3");
-  title(s, "Corpus coverage is guessable in advance");
+  title(s, "Coverage guessable: AUROC 0.65 to 0.83");
   support(s, "a logistic probe, fitted and scored on disjoint question sets, predicts contains-the-answer before any answer is generated", 1.3, { h: 0.7, color: BODY });
   ruleTable(s, [
     ["source", "probe features", "AUROC", "shuffled", "n held out"],
@@ -272,7 +289,7 @@ function lead(slide, pairs, y, size, gap) {
 {
   const s = pres.addSlide({ masterName: "CONTENT" });
   kicker(s, "R E S U L T   4");
-  title(s, "Abstention breaks the standard estimators");
+  title(s, "Refusal reads as confidence: 0.047 → 0.966");
   plate(s, "plate_inversion.png", 2.461, 7.6, 5.0, 1.45);
   support(s, "conditioning on abstention: MeanTokenEntropy 0.047 → 0.966, nothing harmed", 5.0);
   s.addNotes("Result four, about the baselines themselves. Red dots are raw AUROC, blue after conditioning on abstention. Headline numbers spread from 0.034 to 0.97 on the same arm, and the whole spread is about abstention: a declining model emits its refusal with near-zero token entropy, so entropy-family estimators read confident refusal as confident assertion and invert below chance. Sequence log-likelihood happens to encode refusal as uncertain, so it looks strong. Make the encoding explicit, abstention as maximal uncertainty, and the inverted estimator repairs from 0.047 to 0.966 with nothing harmed. Among answered questions every estimator sits between 0.59 and 0.67; the spread was never about discrimination. The repair is one line and portable to any abstaining system.");
@@ -282,7 +299,7 @@ function lead(slide, pairs, y, size, gap) {
 {
   const s = pres.addSlide({ masterName: "CONTENT" });
   kicker(s, "R E S U L T   5");
-  title(s, "The average hides the structure");
+  title(s, "ECE 0.030 overall hides 0.130 in cells");
   plate(s, "plate_reliability.png", 5.087, 8.76, 5.0, 1.45);
   ruleTable(s, [
     ["expected calibration error", "value"],
@@ -296,7 +313,7 @@ function lead(slide, pairs, y, size, gap) {
 {
   const s = pres.addSlide({ masterName: "CONTENT" });
   kicker(s, "R E S U L T   6");
-  title(s, "Where the ignorance mass sits");
+  title(s, "Product rule mute; DS ECE 0.102 vs 0.163");
   eq(s, [
     "product rule answers only if     r~s~  >  g~s~ / (1 − g~s~)",
     "Dempster-Shafer:     m({ŷ~s~}) = r~s~ ,      m(Θ) = 1 − r~s~",
