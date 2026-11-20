@@ -31,3 +31,5 @@ models/
 mock_api/cragkg/
 *.sqlite
 *.pickle
+presentation/node_modules/
+presentation/*.pdf
