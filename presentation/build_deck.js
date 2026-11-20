@@ -226,8 +226,9 @@ function lead(slide, pairs, y, size, gap) {
   const s = pres.addSlide({ masterName: "CONTENT" });
   kicker(s, "R E S U L T   1");
   title(s, "Each knob moves exactly one quantity");
-  plate(s, "plate_dissociation.png", 2.415, 7.9, 5.0, 1.42);
-  support(s, "Δg = −0.168, 95% CI [−0.195, −0.142]   ·   membership flips: 124 gained, 0 lost", 5.0);
+  plate(s, "plate_dissociation.png", 2.384, 7.3, 5.0, 1.3);
+  support(s, "retriever upgraded = keyword overlap replaced by BM25, embeddings, cross-encoder; nothing else changed", 4.68, { h: 0.42 });
+  support(s, "Δg = −0.168, 95% CI [−0.195, −0.142]   ·   flips when the corpus grew: 124 gained, 0 lost", 5.12, { h: 0.4 });
   s.addNotes("Result one, the central experiment. The design answers the strongest objection, that ghost mass and reliability are one quantity split arbitrarily: if r belongs to the agent, improving the agent with the corpus fixed moves r and leaves g; if g belongs to the corpus, growing the corpus tenfold with the agent byte-identical moves g and leaves r. Both arms ran on CRAG, 4,409 questions, 738 of them paired at five and fifty pages. Left panel reliability, right panel ghost mass; grey is before, colour is after. Improving the agent four times over moved reliability from 0.066 to 0.286 and left ghost mass flat. Growing the corpus tenfold halved ghost mass, 0.322 to 0.154, interval nowhere near zero, and moved reliability by eight thousandths. Each manipulation moves exactly one quantity: r is a property of the agent, g of the corpus. The validity check: the five-page corpus is a subset of the fifty-page one, so a sound labeller can only gain members. We gained one hundred and twenty-four, lost zero.");
 }
 
@@ -236,8 +237,9 @@ function lead(slide, pairs, y, size, gap) {
   const s = pres.addSlide({ masterName: "CONTENT" });
   kicker(s, "R E S U L T   2");
   title(s, "Ghost mass is depth-dependent");
-  plate(s, "plate_depth.png", 2.038, 6.7, 5.0, 1.4);
-  support(s, "realtime: g falls 0.481 → 0.123, the largest drop of any class", 5.02);
+  plate(s, "plate_depth.png", 2.038, 6.3, 5.0, 1.26);
+  support(s, "the 738 paired questions, binned by how fast the answer changes; pairs compare 5 vs 50 pages", 4.66, { h: 0.42 });
+  support(s, "realtime: g falls 0.481 → 0.123, the largest drop of any class", 5.12, { h: 0.4 });
   s.addNotes("Result two, a surprise. Split by how fast each answer changes in the world. At five pages, realtime questions carry the heaviest ghost mass and the natural reading is staleness. At fifty pages the picture inverts: realtime drops to 0.123 and becomes the best-covered class, three times the drop of static questions. The fresh figures existed all along, lower in the ranking than a five-page window reaches. Apparent staleness was substantially retrieval depth, and which questions are ghosts depends on how deep the system reads. This refines the specification's working hypothesis: ghost mass grows with recency at shallow depth, and the relation inverts at depth.");
 }
 
@@ -245,22 +247,23 @@ function lead(slide, pairs, y, size, gap) {
 {
   const s = pres.addSlide({ masterName: "CONTENT" });
   kicker(s, "R E S U L T   3");
-  title(s, "Absence is predictable before execution");
+  title(s, "Corpus coverage is guessable in advance");
+  support(s, "a logistic probe, fitted and scored on disjoint question sets, predicts contains-the-answer before any answer is generated", 1.3, { h: 0.7, color: BODY });
   ruleTable(s, [
-    ["source", "AUROC", "permutation", "n held out"],
-    ["P, parametric (question text only)", "0.690", "0.485", "293"],
-    ["K, knowledge graph", "0.83", "0.49", "576"],
-    ["W, five pages", "0.51", "0.50", "1,353"],
-    ["W, fifty pages", "0.651", "0.484", "369"],
-  ], { x: 0.62, y: 1.55, w: 8.8, colW: [3.9, 1.7, 1.9, 1.3], fontSize: 15,
-       accentCol: 1, alignRest: "left", rowH: 0.42 });
-  support(s, "M, memory: g = 0.995 on unique queries, nothing to predict.", 3.95);
+    ["source", "probe features", "AUROC", "shuffled", "n held out"],
+    ["P, parametric", "question text", "0.690", "0.485", "293"],
+    ["K, knowledge graph", "entity found, node degree", "0.83", "0.49", "576"],
+    ["W, five pages", "retrieval scores", "0.51", "0.50", "1,353"],
+    ["W, fifty pages", "retrieval scores", "0.651", "0.484", "369"],
+  ], { x: 0.62, y: 1.95, w: 8.8, colW: [2.1, 2.9, 1.3, 1.3, 1.2],
+       fontSize: 13.5, accentCol: 2, alignRest: "left", rowH: 0.42 });
+  support(s, "M, memory: g = 0.995 on unique queries, nothing to predict.", 4.16, { h: 0.4 });
   s.addText([
     { text: "The five-page null was an artifact: constant features.  ",
       options: { color: BODY } },
     { text: "Gate: false premise detected at 0.868 from text alone.",
       options: { color: BRIGHT } },
-  ], { x: 0.62, y: 4.5, w: 8.8, h: 0.8, fontSize: 13.5, align: "left",
+  ], { x: 0.62, y: 4.66, w: 8.45, h: 0.8, fontSize: 13.5, align: "left",
        margin: 0, isTextBox: true });
   s.addNotes("Result three: the core hypothesis, that cheap pre-execution features predict whether a source holds the answer, now across three of the four sources. For the parametric source the probe uses the question text alone and reaches 0.690, above the bar of 0.6: the model's own coverage is guessable before generating a token. The knowledge base holds at 0.83. The web at five pages appeared refuted at 0.51; that null was a benchmark artifact, every question carrying exactly five unscored pages, so the informative features were constants. At fifty pages the same probe reaches 0.651. Memory is the honest exception: ghost mass 0.995 on unique queries, so there is nothing to predict. Before any source matters there is also a gate: false premises detected at 0.868 from the question alone, the omega component of phi.");
 }

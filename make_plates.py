@@ -26,8 +26,8 @@ plt.rcParams.update({"font.size": 12, "axes.edgecolor": INK,
 
 def dissociation():
     fig, axes = plt.subplots(1, 2, figsize=(7.6, 3.1), sharey=True)
-    labels = ["agent improved\ncorpus fixed\nn = 2,706",
-              "corpus grown\nagent fixed\nn = 738"]
+    labels = ["retriever upgraded,\nsame 5-page corpus\nn = 2,706",
+              "corpus 5 \u2192 50 pages,\nsame retriever\nn = 738"]
     r_vals = [(0.066, 0.286), (0.236, 0.228)]
     g_vals = [(0.318, 0.343), (0.322, 0.154)]
     for ax, vals, name, colour in ((axes[0], r_vals, "reliability  r", BLUE),
