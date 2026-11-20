@@ -1,8 +1,26 @@
 // Dark, typography-led workshop deck with an explicit narrative arc.
+const fs = require("fs");
 const pptxgen = require("pptxgenjs");
 const { applyTheme } = require("./apply_theme.js");
 
 const FIG = "/Users/shainmukungu/Desktop/knowing_where_not_to_look/results/figures/";
+const IMG = __dirname + "/images/";
+const CREDITS = JSON.parse(fs.readFileSync(IMG + "credits.json", "utf8"));
+const strip = s => String(s || "").replace(/<[^>]*>/g, "").trim();
+
+function photo(slide, name, overlayTransparency) {
+  const c = CREDITS[name];
+  if (!c) return;
+  slide.addImage({ path: IMG + c.file, x: 0, y: 0, w: 10, h: 5.625,
+    sizing: { type: "cover", w: 10, h: 5.625 } });
+  slide.addShape("rect", { x: 0, y: 0, w: 10, h: 5.625,
+    fill: { color: "0E1F38", transparency: overlayTransparency },
+    line: { type: "none" } });
+  const who = strip(c.artist);
+  slide.addText(`${who ? who + "  ·  " : ""}${c.license.toUpperCase()}  ·  Wikimedia Commons`, {
+    x: 3.6, y: 5.34, w: 5.4, h: 0.22, fontSize: 6.5, color: "6E86AC",
+    align: "right", margin: 0, isTextBox: true });
+}
 
 const DEEP = "142A47";
 const INKD = "0E1F38";
@@ -135,6 +153,7 @@ function lead(slide, pairs, y, size, gap) {
 // 1 · Title
 {
   const s = pres.addSlide({ masterName: "DARKTITLE" });
+  photo(s, "title", 26);
   s.addText("Knowing Where\nNot to Look", {
     x: 0.9, y: 1.3, w: 8.4, h: 1.95, fontSize: 54, bold: true,
     fontFace: "Cambria", color: WHITE, align: "left", margin: 0,
@@ -151,6 +170,7 @@ function lead(slide, pairs, y, size, gap) {
 // 2 · The problem
 {
   const s = pres.addSlide({ masterName: "CONTENT" });
+  photo(s, "problem", 10);
   kicker(s, "P R O B L E M");
   title(s, "Agents answer when they should not");
   lead(s, [
@@ -304,6 +324,7 @@ function lead(slide, pairs, y, size, gap) {
 // 15 · Close
 {
   const s = pres.addSlide({ masterName: "DARKTITLE" });
+  photo(s, "close", 22);
   s.addText(runsOf("( r~s~(q) ,  g~s~(q) )", WHITE), {
     x: 0.9, y: 1.75, w: 8.2, h: 1.0, fontSize: 44, bold: true,
     fontFace: "Cambria", color: WHITE, align: "left", margin: 0, isTextBox: true });

@@ -1,0 +1,32 @@
+{
+  "title": {
+    "file": "title.jpg",
+    "source": "File:360-degree Panorama of the Southern Sky.jpg",
+    "license": "cc by 4.0",
+    "artist": "ESO/H.H. Heyer",
+    "size": [
+      3840,
+      1167
+    ]
+  },
+  "problem": {
+    "file": "problem.jpg",
+    "source": "File:Condado de Dubl\u00edn - Long Room-Trinity College - 20170826095451.jpg",
+    "license": "cc by-sa 4.0",
+    "artist": "<a href=\"//commons.wikimedia.org/wiki/User:Rafesmar\" title=\"User:Rafesmar\">Rafesmar</a>",
+    "size": [
+      3840,
+      2560
+    ]
+  },
+  "close": {
+    "file": "close.jpg",
+    "source": "File:First light of the VLT Laser Guide Star (eso0607a).jpg",
+    "license": "cc by 4.0",
+    "artist": "ESO/G.H\u00fcdepohl\u00a0(<a rel=\"nofollow\" class=\"external text\" href=\"http://atacamaphoto.com\">atacamaphoto.com</a>)",
+    "size": [
+      3840,
+      5771
+    ]
+  }
+}

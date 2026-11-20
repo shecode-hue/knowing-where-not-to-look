@@ -1,5 +1,6 @@
 """Rasterize each slide of a pptx to PNG so the design can actually be seen."""
 import io
+import re
 import sys
 from pathlib import Path
 
@@ -163,20 +164,37 @@ def main(path):
                 pic = Image.open(io.BytesIO(blob)).convert("RGB")
                 pw = int(Emu(shape.width).inches * DPI)
                 ph = int(Emu(shape.height).inches * DPI)
-                img.paste(pic.resize((pw, ph)),
-                          (int(Emu(shape.left).inches * DPI),
-                           int(Emu(shape.top).inches * DPI)))
+                scale = max(pw / pic.size[0], ph / pic.size[1])
+                rw, rh = int(pic.size[0] * scale), int(pic.size[1] * scale)
+                pic = pic.resize((rw, rh))
+                cx, cy = (rw - pw) // 2, (rh - ph) // 2
+                pic = pic.crop((cx, cy, cx + pw, cy + ph))
+                img.paste(pic, (int(Emu(shape.left).inches * DPI),
+                                int(Emu(shape.top).inches * DPI)))
             elif shape.has_table:
                 draw_table(img, draw, shape, (120, 126, 136))
             elif shape.shape_type == 1:
                 try:
                     col = rgb(shape.fill.fore_color, None)
                     if col:
-                        x = Emu(shape.left).inches * DPI
-                        y = Emu(shape.top).inches * DPI
-                        draw.rectangle(
-                            [x, y, x + Emu(shape.width).inches * DPI,
-                             y + Emu(shape.height).inches * DPI], fill=col)
+                        x = int(Emu(shape.left).inches * DPI)
+                        y = int(Emu(shape.top).inches * DPI)
+                        w2 = int(Emu(shape.width).inches * DPI)
+                        h2 = int(Emu(shape.height).inches * DPI)
+                        m = re.search(r'alpha val="(\d+)"',
+                                      shape.fill._xPr.xml
+                                      if hasattr(shape.fill, "_xPr") else
+                                      shape._element.xml)
+                        if m:
+                            a = int(int(m.group(1)) / 100000 * 255)
+                            layer = Image.new("RGBA", (w2, h2),
+                                              col + (a,))
+                            img.paste(Image.alpha_composite(
+                                img.crop((x, y, x + w2, y + h2))
+                                   .convert("RGBA"), layer).convert("RGB"),
+                                (x, y))
+                        else:
+                            draw.rectangle([x, y, x + w2, y + h2], fill=col)
                 except Exception:
                     pass
                 if shape.has_text_frame:
