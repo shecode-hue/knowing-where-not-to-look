@@ -300,3 +300,52 @@ The agent's 400-span window reaches 62% of member questions; within the
 window, r is 0.312, higher than at five pages. The flat overall r is entirely
 window truncation: rare-passage mass now separates into answers beyond the
 agent's view (38% of members) and answers mis-ranked within it.
+
+---
+
+## Version 8. The 7B reader: scaling settles three questions
+
+Same 500 questions, same stratified split, reader swapped from 1.5B to 7B
+(Qwen2.5-7B-Instruct, 4-bit), everything else identical.
+
+### The model scales toward honesty, not knowledge
+
+| arm | answered 1.5B → 7B | precision 1.5B → 7B |
+|---|---|---|
+| closed book | 0.45 → 0.16 | 0.157 → 0.348 |
+| concatenation | 0.61 → 0.46 | 0.260 → 0.430 |
+| web only | 0.61 → 0.42 | 0.258 → 0.350 |
+| knowledge base | 0.15 → 0.14 | 0.523 → 0.600 |
+
+Raw accuracy barely moves; the model abstains roughly twice as often and is
+right far more often when it speaks.
+
+### The inversion survives scale, and sharpens
+
+MeanTokenEntropy on K: 0.034 at 1.5B, **0.029 at 7B**, repaired to 0.970 by
+abstention conditioning. The defect is a property of the method, not of
+model size; more abstention means more poisoning. Working estimators climb
+to 0.90 to 0.97 headline AUROC at 7B (PTrue 0.965 closed book,
+verbalised confidence 0.624 → 0.785).
+
+The sharpened finding: **among questions the 7B chooses to answer, every
+estimator falls to chance** (0.39 to 0.57 against 0.56 to 0.67 at 1.5B). At
+scale, the headline AUROC of every standard estimator is abstention signal
+and nothing else. A better model self-selects its answers so strongly that
+the residual correctness is unpredictable to all nine methods.
+
+### H3 end to end, 195 held-out questions
+
+| version | answered | precision | CRAG |
+|---|---|---|---|
+| oracle routing over P, W, K, no abstention | 0.487 | 0.442 | **−0.056** |
+| best single source (K), calibrated threshold | 0.138 | 0.593 | +0.026 |
+| concatenation RAG, same treatment | 0.077 | 0.800 | **+0.046** |
+| DS fusion of gated sources | 0.154 | 0.633 | +0.041 |
+
+Oracle routing without abstention is net harmful: choosing the right source
+is worth less than knowing when to stay silent. DS fusion beats every single
+source on both score and precision, and doubles the coverage of gated
+concatenation at a cost of 0.005 CRAG; concatenation with calibrated
+abstention remains the narrow winner by score. H3 is therefore supported
+against single sources and routing, and not yet against concatenation.
